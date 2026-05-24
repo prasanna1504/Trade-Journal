@@ -1,6 +1,6 @@
 # TradeJournal — AI-Powered Trading Journal & Analytics Platform
 
-> A full-stack web application that helps traders systematically journal their trades, analyse performance patterns, and improve decision-making through a multi-agent AI analysis pipeline powered by Google Gemini.
+> A full-stack web application that helps traders systematically journal their trades, analyse performance patterns, and improve decision-making through a multi-agent AI analysis pipeline powered by Google Gemini(AI Studio).
 
 ---
 
