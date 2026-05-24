@@ -43,7 +43,8 @@ Each agent runs independently and in parallel, producing focused insights:
 | 🏆 Head Coach | Synthesises all findings into 3 prioritised, actionable changes |
 
 ### 📥 Multi-Source Trade Import
-- **MT5 JSON Import** — Paste JSON scraped from your broker's web platform via a one-liner browser console script
+- **MetaAPI Integration** — Connect your MT5 account (login + investor read-only password + broker server) and fetch the complete trade history automatically via the MetaAPI cloud gateway — no Windows machine, no local MT5 installation required
+- **MT5 JSON Import** — Paste JSON scraped from your broker's web platform via a one-liner browser console script (for brokers whose platforms don't expose export)
 - **CSV Upload** — Drag-and-drop MT5 export CSV with automatic column normalisation
 - **BUY/SELL inference** — Automatically determines trade direction from price delta × P&L when the broker omits the type field
 - **Deduplication** — Re-importing never creates duplicate trades (stable MD5 ticket hashing)
@@ -119,6 +120,35 @@ Since DOM-scraped trade data lacks unique IDs, a stable MD5 hash of `symbol + op
 
 **Computed dashboard metrics**
 Win rate, profit factor, average win/loss, and equity curve are computed server-side in Django using PostgreSQL aggregation (`Sum`, `Avg`) rather than in the frontend, keeping the client stateless and the API cacheable.
+
+---
+
+## The MT5 Integration Story
+
+Getting live trade data out of MetaTrader 5 into a web application is a genuinely hard problem — and solving it was one of the more interesting engineering decisions in this project.
+
+**The obvious path doesn't work on Mac/Linux.**
+The official `MetaTrader5` Python library connects directly to a locally-installed MT5 terminal. The problem: the library is Windows-only. It ships as a compiled Windows DLL, and no amount of Wine or emulation makes it production-reliable. For a web application where the server needs to run on Linux, this is a dead end.
+
+**We evaluated alternatives:**
+
+*mt5-rest-api (GitHub)* — A C++ DLL that turns a local MT5 terminal into a REST server. Impressive engineering, but requires MT5 to be running on a Windows machine at all times and the REST API is only accessible on localhost. Not viable for a cloud-hosted backend.
+
+*Tonpo SDK* — A newer Python library wrapping a cloud MT5 gateway. Well-designed async API, but the SDK is focused on live trading (placing orders, managing positions) rather than fetching historical trade data. Lacked the `get_account_trades` endpoint we needed.
+
+*MetaAPI* — A mature cloud platform that runs MT5 terminals on their own Windows infrastructure. You send credentials once; their servers connect to the broker. Exposes historical trade data via the MetaStats API (`get_account_trades(account_id, start, end)`). Works from any platform, any language.
+
+**Why MetaAPI won:**
+- Provides `get_account_trades()` — exactly what a trade journal needs
+- MetaStats module returns pre-computed analytics (win rate, drawdown, profit factor) as a bonus
+- Investor password (read-only) is sufficient — we never touch trading permissions
+- REST + WebSocket API, meaning it's platform-agnostic by design
+
+**The honest trade-off:**
+MetaAPI is a paid service beyond its free tier. For this project the integration is fully built and functional — account provisioning, credential linking, historical deal fetching, and the open/close pairing algorithm are all implemented. The infrastructure decision of which MetaAPI plan to subscribe to is a business choice, not an engineering one.
+
+**The future possibility — building our own gateway:**
+Now that the architecture is understood, it would be feasible to build a lightweight self-hosted equivalent: a Windows VM running MT5 with a thin Python service using the official `MetaTrader5` library, exposing a private REST API. This eliminates the third-party dependency entirely. The MetaAPI SDK was invaluable for understanding exactly which MT5 data structures matter (deal entries, position pairing, entryType IN/OUT logic) — effectively serving as a reference implementation for what a custom SDK would need to replicate.
 
 ---
 
@@ -235,16 +265,6 @@ copy(JSON.stringify(data));
 ```
 
 Paste the copied JSON into the **Import → Paste JSON** tab.
-
----
-
-## Roadmap
-
-- [ ] MetaAPI integration for automated live trade sync (pending free tier)
-- [ ] Weekly AI performance report via email
-- [ ] Mobile-responsive layout
-- [ ] Trade tagging by market session (London, New York, Asian)
-- [ ] Shareable read-only journal links
 
 ---
 
