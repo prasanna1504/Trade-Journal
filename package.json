@@ -1,0 +1,6 @@
+{
+  "name": "trade-journal",
+  "scripts": {
+    "dev": "cd frontend && npm run dev"
+  }
+}
